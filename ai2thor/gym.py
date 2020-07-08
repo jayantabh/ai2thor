@@ -55,7 +55,7 @@ class GymTHOR:
 
     def episode_done(self, event):
         raise NotImplementedError()
-    
+
     def reward(self, episode_done: bool, event) -> float:
         raise NotImplementedError()
 
@@ -65,6 +65,10 @@ class GymTHOR:
 
     def __exit__(self, *args) -> None:
         """Enables exiting context manager support."""
+        self.controller.stop()
+
+    def close(self):
+        """Ends the controller's session."""
         self.controller.stop()
 
     def _seed(self, seed_num: int=42) -> None:
