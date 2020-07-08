@@ -17,6 +17,17 @@ class GymTHOR:
             self.controller.last_event.frame.shape
         self._seed(seed)
 
+        # helpers
+        self._scene_names = self.scene_names()
+        self.initial_positions = self.initial_scene_positions()
+        self._episode_already_done = False
+        self.time_step = 0
+        self.horizon = horizon
+
+        # for reset rotations
+        self.rotateStepDegrees = 90 if 'rotateStepDegrees' not in \
+            controller_properties else controller_properties['rotateStepDegrees']
+
     @property
     def observation_space(self) -> gym.spaces:
         """Returns a gym.spaces observation space. Default is the
@@ -53,11 +64,73 @@ class GymTHOR:
         rgb_image = event.frame
         return rgb_image / 255
 
-    def episode_done(self, event):
+    def episode_done(self, event) -> bool:
         raise NotImplementedError()
+
+    def step(self, action):
+        assert action in self.action_space, 'Invalid action'
+        if self._episode_already_done:
+            return None, None, True, None
+        
+        raise NotImplementedError()
+
+        self.time_step += 1
+        done = self.episode_done(self.controller.last_event)
+
+        return (
+            self.observation(),
+            self.reward(),
+            done,
+            self.controller.last_event.metadata
+        )
 
     def reward(self, episode_done: bool, event) -> float:
         raise NotImplementedError()
+
+    def initial_scene_positions(self) -> Dict[str, Dict[str, float]]:
+        """Returns a dictionary of possible starting positions for
+           each scene. Defaults to returning a list of all reachable
+           positions in each scene.
+           
+        Returns a dictionary is in the form of
+            scene name -> list of xyz position dictionaries."""
+        reachable_positions = dict()
+        for scene in self._scene_names:
+            self.controller.reset(scene)
+            event = self.controller.step(action='GetReachablePositions')
+            reachable_positions[scene] = event.metadata['reachablePositions']
+        return reachable_positions
+
+    def reset(self) -> np.array:
+        """Resets the agent to a random position/rotation in a random scene
+           and returns an initial observation."""
+           self._episode_already_done = False
+
+           # change the scene
+           scene = random.choice(self._scene_names)
+           self.controller.reset(scene)
+
+           # set a random initial position
+           rand_xyz_pos = random.choice(self.initial_positions[scene])
+
+           # not that np.arange works with decimals, while range doesn't
+           rand_yaw = random.choice(np.arange(0, 360, self.rotateStepDegrees))
+
+            self.controller.step(action='TeleportFull',
+                rotation=dict(x=0.0, y=rand_yaw, z=0.0),
+                **rand_xyz_pos
+            )
+
+           return self.observation(self.controller.last_event)
+
+    def _get_all_reachable_positions(self) -> Dict[str, Dict[str, float]]:
+        """Returns the reachable positions for each scene in 'scene_names()'."""
+        reachable_positions = dict()
+        for scene in self._scene_names:
+            self.controller.reset(scene)
+            event = self.controller.step(action='GetReachablePositions')
+            reachable_positions[scene] = event.metadata['reachablePositions']
+        return reachable_positions
 
     def __enter__(self):
         """Enables entering context manager support."""
