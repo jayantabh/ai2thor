@@ -296,7 +296,7 @@ def class_dataset_images_for_scene(scene_name):
             )
 
             object_type = object_id.split("|")[0].lower()
-            target_dir = os.path.join("images", scene_name, object_type)
+            target_dir = os.path.join("dataset", scene_name, object_type)
             h = hashlib.md5()
             h.update(json.dumps(point, sort_keys=True).encode("utf8"))
             h.update(json.dumps(v, sort_keys=True).encode("utf8"))

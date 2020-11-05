@@ -76,7 +76,7 @@ RUN sh /root/{driver_filename} -s --no-kernel-module
 
 
 def image_exists(image_name):
-    output = subprocess.check_output("docker images -q %s" % image_name, shell=True)
+    output = subprocess.check_output("docker dataset -q %s" % image_name, shell=True)
     return len(output) > 0
 
 

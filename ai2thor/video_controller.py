@@ -300,7 +300,7 @@ class VideoController(Controller):
                 (self.saved_frames[0].shape[1], self.saved_frames[0].shape[0])
             )
             for frame in self.saved_frames:
-                # assumes that the frames are RGB images. CV2 uses BGR.
+                # assumes that the frames are RGB dataset. CV2 uses BGR.
                 video.write(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
             cv2.destroyAllWindows()
             video.release()

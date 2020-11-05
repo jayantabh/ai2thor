@@ -298,7 +298,7 @@ class Server(object):
 
         if add_depth_noise:
             assert width == height,\
-                "Noise supported with square dimension images only."
+                "Noise supported with square dimension dataset only."
             self.noise_indices = generate_noise_indices(width)
 
     def set_init_params(self, init_params):

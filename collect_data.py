@@ -5,9 +5,9 @@ from matplotlib.patches import Rectangle
 import json
 import itertools
 import numpy as np
-
+from bound import *
+import pickle
 import os
-os.chdir('..')
 
 REJECT_THRESHOLD = 10
 plot_bb = True
@@ -17,34 +17,40 @@ alpha = 0.5
 
 controller = Controller(scene='FloorPlan28', gridSize=0.25, renderObjectImage=True, agentControllerType='Physics')
 
+save_path = "dataset/"
+
 event = controller.step('Pass')
 
-center = event.metadata["sceneBounds"]["center"]
-print(center)
-
-bounds = np.array(event.metadata["sceneBounds"]["cornerPoints"])
-
-x_min = np.amin(bounds[:, 0])
-x_max = np.amax(bounds[:, 0])
-y_min = np.amin(bounds[:, 1])
-y_max = np.amax(bounds[:, 1])
-z_min = np.amin(bounds[:, 2])
-z_max = np.amax(bounds[:, 2])
+# center = event.metadata["sceneBounds"]["center"]
+#
+# bounds = np.array(event.metadata["sceneBounds"]["cornerPoints"])
+#
+# x_min = np.amin(bounds[:, 0])
+# x_max = np.amax(bounds[:, 0])
+# y_min = np.amin(bounds[:, 1])
+# y_max = np.amax(bounds[:, 1])
+# z_min = np.amin(bounds[:, 2])
+# z_max = np.amax(bounds[:, 2])
 
 num_iters = 10
 
-floor_types = np.arange(1, 5)
-floor_numbers = np.arange(1, 31)
+floor_types = [str(i) for i in range(1, 5)]
+floor_numbers = ['0' + str(i) for i in range(1, 10)] + [str(i) for i in range(10, 31)]
+
+image_data = {}
+image_id = 0
 
 for floor_type in floor_types:
     for floor_number in floor_numbers:
         floor_type = '' if floor_type == '1' else floor_type
+        floor_number = floor_number[1:] if floor_type == '' else floor_number
+        print(floor_type, floor_number)
         floor = 'FloorPlan' + str(floor_type) + str(floor_number)
 
         controller.reset(scene=floor)
 
         for i in range(num_iters):
-            fig, ax = plt.subplots(1)
+            # fig, ax = plt.subplots(1)
             print("###########################")
             event = controller.step(action='GetReachablePositions')
             valid_positions = event.metadata['actionReturn']
@@ -71,42 +77,65 @@ for floor_type in floor_types:
                                     rotation=dict(x=0.0, y=rotation, z=0.0),
                                     horizon=horizon)
 
+            metadata = event.metadata['objects']
+
+            # with open('metadata.json', 'w') as outfile:
+            #     json.dump(event.metadata, outfile)
+
             img = event.frame
 
             bounding_boxes = event.instance_detections2D
 
             labels = []
-            bb_array = []
+            object_ids = []
+            bounding_boxes_list = []
 
             if len(bounding_boxes) <= 10:
                 print("Reject Image")
-                plt.imshow(img)
-                plt.show()
+                # plt.imshow(img)
+                # plt.show()
             else:
                 boxes = []
-                ax.imshow(img)
+                # ax.imshow(img)
 
                 for key in bounding_boxes:
-                    label = key.split('|')[0]
-                    labels.append(label)
+                    # label = key.split('|')[0]
+                    # labels.append(label)
                     bounding_box = bounding_boxes[key]
-                    bb_array.append(bounding_box)
+                    #
+                    # if plot_bb:
+                    #     xy = (bounding_box[0], bounding_box[1])
+                    #     width = bounding_box[2] - bounding_box[0]
+                    #     height = bounding_box[3] - bounding_box[1]
+                    #
+                    #     rec = Rectangle(xy, width, height, linewidth=1, edgecolor='r', facecolor='none')
+                    #     ax.add_patch(rec)
 
-                    if plot_bb:
-                        xy = (bounding_box[0], bounding_box[1])
-                        width = bounding_box[2] - bounding_box[0]
-                        height = bounding_box[3] - bounding_box[1]
+                    object_ids.append(key)
+                    bounding_boxes_list.append(bounding_box)
 
-                        rec = Rectangle(xy, width, height, linewidth=1, edgecolor='r', facecolor='none')
-                        ax.add_patch(rec)
+                plt.imsave(os.path.join(save_path, str(floor_type) + str(floor_number) + str(image_id) + '.png'), img)
 
-                    print(label, bounding_box)
+            res1, box, mod_name, mod_dist, objpos = prepare_data(metadata, event)
 
-                plt.show()
+            relations = []
 
-            metadata = event.metadata
+            # On top and Below Relations
+            tp = top_down(metadata)
+            relations.extend(tp)
 
+            # Near and Left/Right Relation
+            nlr = near_lr(metadata, objpos)
+            relations.extend(nlr)
 
+            # Infront and Behind Relation
+            fb = front_back(metadata, res1, box, mod_name, mod_dist)
+            relations.extend(fb)
 
-            with open('../metadata.json', 'w') as outfile:
-                json.dump(event.metadata, outfile)
+            relations_map, object_ids = process_relations(object_ids, relations)
+
+            image_data[image_id] = (object_ids, bounding_boxes_list, relations_map)
+            image_id += 1
+
+with open(os.path.join(save_path, 'data.pickle')) as f:
+    pickle.dump(image_data, f)
