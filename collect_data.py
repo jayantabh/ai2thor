@@ -6,11 +6,14 @@ import json
 import itertools
 import numpy as np
 
+import os
+os.chdir('..')
+
 REJECT_THRESHOLD = 10
 plot_bb = True
-facecolor='r'
-edgecolor='None'
-alpha=0.5
+facecolor = 'r'
+edgecolor = 'None'
+alpha = 0.5
 
 controller = Controller(scene='FloorPlan28', gridSize=0.25, renderObjectImage=True, agentControllerType='Physics')
 
@@ -101,5 +104,9 @@ for floor_type in floor_types:
 
                 plt.show()
 
-            with open('metadata.json', 'w') as outfile:
+            metadata = event.metadata
+
+
+
+            with open('../metadata.json', 'w') as outfile:
                 json.dump(event.metadata, outfile)
