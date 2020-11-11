@@ -6,10 +6,11 @@ import json
 import itertools
 import numpy as np
 from bound import *
+from relations import *
 import pickle
 import os
 
-REJECT_THRESHOLD = 10
+REJECT_THRESHOLD = 12
 plot_bb = True
 facecolor = 'r'
 edgecolor = 'None'
@@ -44,9 +45,8 @@ num_iters = 10
 
 floor_types = [str(i) for i in range(1, 5)]
 floor_numbers = ['0' + str(i) for i in range(1, 10)] + [str(i) for i in range(10, 31)]
-
-print(floor_types)
-print(floor_numbers)
+# floor_types = [floor_types[0]]
+# floor_numbers = [floor_numbers[0]]
 
 image_data = {}
 image_id = 0
@@ -90,8 +90,8 @@ for floor_type in floor_types:
 
             metadata = event.metadata['objects']
 
-            # with open('metadata.json', 'w') as outfile:
-            #     json.dump(event.metadata, outfile)
+            with open('metadata.json', 'w') as outfile:
+                json.dump(event.metadata, outfile)
 
             img = event.frame
 
@@ -101,7 +101,7 @@ for floor_type in floor_types:
             object_ids = []
             bounding_boxes_list = []
 
-            if len(bounding_boxes) <= 12:
+            if len(bounding_boxes) <= REJECT_THRESHOLD:
                 print("Reject Image")
                 # plt.imshow(img)
                 # plt.show()
@@ -112,8 +112,9 @@ for floor_type in floor_types:
                 for key in bounding_boxes:
                     # label = key.split('|')[0]
                     # labels.append(label)
+
                     bounding_box = bounding_boxes[key]
-                    #
+
                     # if plot_bb:
                     #     xy = (bounding_box[0], bounding_box[1])
                     #     width = bounding_box[2] - bounding_box[0]
@@ -143,7 +144,10 @@ for floor_type in floor_types:
                 fb = front_back(metadata, res1, box, mod_name, mod_dist)
                 relations.extend(fb)
 
-                relations_map, object_ids = process_relations(object_ids, relations)
+                has = has_relations(metadata, inc=0.1)
+                relations.extend(has)
+
+                relations_map = process_relations(object_ids, relations)
 
                 image_data[image_id] = (object_ids, bounding_boxes_list, relations_map)
 

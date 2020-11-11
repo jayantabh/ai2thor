@@ -40,6 +40,9 @@ def process_relations(object_ids, relations):
     object_ids_map = {}
     relation_map = defaultdict(set)
 
+    for i in range(len(object_ids)):
+        object_ids_map[object_ids[i]] = i
+
     for source, relation, target in relations:
         if source is None or target is None:
             continue
@@ -47,23 +50,25 @@ def process_relations(object_ids, relations):
         if source in object_ids_map:
             source_id = object_ids_map[source]
         else:
-            object_ids.append(source)
-            object_ids_map[source] = len(object_ids) - 1
-            source_id = object_ids_map[source]
+            # object_ids.append(source)
+            # object_ids_map[source] = len(object_ids) - 1
+            # source_id = object_ids_map[source]
+            source_id = None
 
         if target in object_ids_map:
-            target_id = object_ids_map[source]
-        else:
-            object_ids.append(target)
-            object_ids_map[target] = len(object_ids) - 1
             target_id = object_ids_map[target]
+        else:
+            # object_ids.append(target)
+            # object_ids_map[target] = len(object_ids) - 1
+            # target_id = object_ids_map[target]
+            target_id = None
 
-        if source_id == target_id:
+        if source_id is None or target_id is None or source_id == target_id:
             continue
 
         relation_map[relation].add((source_id, target_id))
 
-    return relation_map, object_ids
+    return relation_map
 
 
 #'On top and Below Relations'
