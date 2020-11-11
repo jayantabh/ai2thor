@@ -15,7 +15,15 @@ facecolor = 'r'
 edgecolor = 'None'
 alpha = 0.5
 
-controller = Controller(scene='FloorPlan28', gridSize=0.25, renderObjectImage=True, agentControllerType='Physics')
+controller = Controller(
+    scene='FloorPlan28',
+    width=600,
+    height=600,
+    gridSize=0.25,
+    renderObjectImage=True,
+    agentControllerType='Physics',
+    fieldOfView='120'
+)
 
 save_path = "dataset/"
 
@@ -37,14 +45,17 @@ num_iters = 10
 floor_types = [str(i) for i in range(1, 5)]
 floor_numbers = ['0' + str(i) for i in range(1, 10)] + [str(i) for i in range(10, 31)]
 
+print(floor_types)
+print(floor_numbers)
+
 image_data = {}
 image_id = 0
 
 for floor_type in floor_types:
     for floor_number in floor_numbers:
         floor_type = '' if floor_type == '1' else floor_type
-        floor_number = floor_number[1:] if floor_type == '' else floor_number
-        print(floor_type, floor_number)
+        floor_number = floor_number[1:] if floor_type == '' and int(floor_number) < 10 else floor_number
+        print(f"Floor Type: {floor_type}, Floor Number: {floor_number}")
         floor = 'FloorPlan' + str(floor_type) + str(floor_number)
 
         controller.reset(scene=floor)
@@ -90,7 +101,7 @@ for floor_type in floor_types:
             object_ids = []
             bounding_boxes_list = []
 
-            if len(bounding_boxes) <= 10:
+            if len(bounding_boxes) <= 12:
                 print("Reject Image")
                 # plt.imshow(img)
                 # plt.show()
@@ -114,28 +125,33 @@ for floor_type in floor_types:
                     object_ids.append(key)
                     bounding_boxes_list.append(bounding_box)
 
-                plt.imsave(os.path.join(save_path, str(floor_type) + str(floor_number) + str(image_id) + '.png'), img)
+                plt.imsave(os.path.join(save_path, str(floor_type) + str(floor_number) + '_' + str(image_id) + '.png'), img)
 
-            res1, box, mod_name, mod_dist, objpos = prepare_data(metadata, event)
+                res1, box, mod_name, mod_dist, objpos = prepare_data(metadata, event)
 
-            relations = []
+                relations = []
 
-            # On top and Below Relations
-            tp = top_down(metadata)
-            relations.extend(tp)
+                # On top and Below Relations
+                tp = top_down(metadata)
+                relations.extend(tp)
 
-            # Near and Left/Right Relation
-            nlr = near_lr(metadata, objpos)
-            relations.extend(nlr)
+                # Near and Left/Right Relation
+                nlr = near_lr(metadata, objpos)
+                relations.extend(nlr)
 
-            # Infront and Behind Relation
-            fb = front_back(metadata, res1, box, mod_name, mod_dist)
-            relations.extend(fb)
+                # Infront and Behind Relation
+                fb = front_back(metadata, res1, box, mod_name, mod_dist)
+                relations.extend(fb)
 
-            relations_map, object_ids = process_relations(object_ids, relations)
+                relations_map, object_ids = process_relations(object_ids, relations)
 
-            image_data[image_id] = (object_ids, bounding_boxes_list, relations_map)
-            image_id += 1
+                image_data[image_id] = (object_ids, bounding_boxes_list, relations_map)
 
-with open(os.path.join(save_path, 'data.pickle')) as f:
+                for key in relations_map:
+                    for o1, o2 in relations_map[key]:
+                        print(key, object_ids[o1], object_ids[o2])
+
+                image_id += 1
+
+with open(os.path.join(save_path, 'data.pickle'), 'wb') as f:
     pickle.dump(image_data, f)
