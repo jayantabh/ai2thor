@@ -9,22 +9,36 @@ def prepare_data(metadata, event):
     dist = []
     name = []
     objpos = []
-
+    inin=[]
     for i in range(len(metadata)):
-        dist.append(metadata[i]['distance'])
-        name.append(metadata[i]['objectId'])
-        objpos.append([metadata[i]['name'], metadata[i]['position']])
-
-    res = dict(zip(name, dist)) 
+        inin.append(metadata[i]['objectId'])
+   
+    supp = metadata
+   
     p = event.instance_detections2D
     q = list(p.values())
-    l = list(p.keys())
-    objs = l
+    objs = list(p.keys())
 
-    res1 = dict(zip(objs, q)) 
+    res1 = dict(zip(objs, q))
     for i in objs:
-        if i not in name:
+        if i not in inin:
             del res1[i]
+ 
+    upd_obj = res1.keys()
+
+    ind = []
+    for j in range(len(metadata)):
+        i = metadata[j]['objectId']
+        if i not in upd_obj:
+            ind.append(j)    
+    for i in sorted(ind,reverse=True):
+        del supp[i]
+ 
+    for i in range(len(supp)):
+        dist.append(supp[i]['distance'])
+        name.append(supp[i]['objectId'])
+
+    res = dict(zip(name, dist))
 
     box = list(res1.values())
 
@@ -32,8 +46,21 @@ def prepare_data(metadata, event):
 
     mod_name=list(a_sub.keys())
     mod_dist=list(a_sub.values())
+    d=[]
+    put = supp
+    search = ['Bed','CounterTop','DiningTable','Floor','ShelvingUnit','StoveBurner']
+    for i in search:
+      for j in range(len(put)):
+        if put[j]['objectType'] == i:
+           d.append(j)
+    for i in sorted(d,reverse=True):
+        del put[i]
 
-    return res1, box, mod_name, mod_dist, objpos
+    for i in range(len(put)):
+       objpos.append([put[i]['name'],put[i]['position']])
+
+
+    return supp, put, res1, box, mod_name, mod_dist, objpos
 
 
 def process_relations(object_ids, relations):
@@ -72,33 +99,33 @@ def process_relations(object_ids, relations):
 
 
 #'On top and Below Relations'
-def top_down(metadata):
+def top_down(supp):
     topdown = []
 
-    for i in range(len(metadata)):
-        if isinstance(metadata[i]['receptacleObjectIds'], list):
-            for rec_object_ids in metadata[i]['receptacleObjectIds']:
+    for i in range(len(supp)):
+        if isinstance(supp[i]['receptacleObjectIds'], list):
+            for rec_object_ids in supp[i]['receptacleObjectIds']:
                 topdown.append(
                     [
                         rec_object_ids,
                         'on top of',
-                        metadata[i]['objectId']
+                        supp[i]['objectId']
                     ]
                 )
         else:
             topdown.append(
                 [
-                    metadata[i]['receptacleObjectIds'],
+                    supp[i]['receptacleObjectIds'],
                     'on top of',
-                    metadata[i]['objectId']
+                    supp[i]['objectId']
                 ]
             )
 
-        if isinstance(metadata[i]['parentReceptacles'], list):
-            for parent_object_ids in metadata[i]['parentReceptacles']:
+        if isinstance(supp[i]['parentReceptacles'], list):
+            for parent_object_ids in supp[i]['parentReceptacles']:
                 topdown.append(
                     [
-                        metadata[i]['objectId'],
+                        supp[i]['objectId'],
                         'on top of',
                         parent_object_ids
                     ]
@@ -106,9 +133,9 @@ def top_down(metadata):
         else:
             topdown.append(
                 [
-                    metadata[i]['objectId'],
+                    supp[i]['objectId'],
                     'on top of',
-                    metadata[i]['parentReceptacles']
+                    supp[i]['parentReceptacles']
                 ]
             )
 
@@ -116,37 +143,37 @@ def top_down(metadata):
 
 
 #'Near and Left/Right Relation'
-def near_lr(metadata, objpos):
+def near_lr(put, objpos):
     near_reldist = []
     far_reldist = []
 
-    for i in range(len(metadata) - 1):
-        for j in range(i + 1, len(metadata)):
+    for i in range(len(put) - 1):
+        for j in range(i + 1, len(put)):
             distance = np.linalg.norm(np.array(list(objpos[i][1].values())) - np.array(list(objpos[j][1].values())))
             if distance < 0.25:
                 if list(objpos[i][1].values())[0] >= list(objpos[j][1].values())[0]:
                     lr = 'left'
                 else:
                     lr = 'right'
-                near_reldist.append([metadata[i]['objectId'], f'to {lr} of', metadata[j]['objectId']])
+                near_reldist.append([put[i]['objectId'], f'to {lr} of', put[j]['objectId']])
             else:
-                far_reldist.append([metadata[i]['objectId'], 'far', metadata[j]['objectId']])
+                far_reldist.append([put[i]['objectId'], 'far', put[j]['objectId']])
 
     return near_reldist
 
-  
+ 
 # In-front and Behind Relation
-def front_back(metadata, res1, box, mod_name, mod_dist):
+def front_back(supp, res1, box, mod_name, mod_dist):
     infront_behind = []
 
     def inter_con(arr1, arr2):
         k = 1
         l = 0
-        # If one rectangle is on left side of other 
+        # If one rectangle is on left side of other
         if arr1[0] > arr2[2] or arr2[0] > arr1[2]:
             k = 0
 
-        # If one rectangle is above other 
+        # If one rectangle is above other
         if arr1[1] > arr2[3] or arr2[1] > arr1[3]:
             k = 0
 
@@ -175,22 +202,22 @@ def front_back(metadata, res1, box, mod_name, mod_dist):
             if i == 1:
                 # Boxes contain each other
 
-                for p in range(len(metadata)):
-                    if metadata[p]['objectId'] == mod_name[s]:
+                for p in range(len(supp)):
+                    if supp[p]['objectId'] == mod_name[s]:
 
-                        if metadata[p]['parentReceptacles']:
-                            if mod_name[t] in metadata[p]['parentReceptacles']:
+                        if supp[p]['parentReceptacles']:
+                            if mod_name[t] in supp[p]['parentReceptacles']:
                                 m=1
 
-                    if metadata[p]['receptacleObjectIds']:
-                        if mod_name[t] in metadata[p]['receptacleObjectIds']:
-                            n = 1
+                        if supp[p]['receptacleObjectIds']:
+                            if mod_name[t] in supp[p]['receptacleObjectIds']:
+                                n = 1
 
-                    if m == 0 or n == 0:
-                        if mod_dist[s] > mod_dist[t]:
-                            infront_behind.append([mod_name[s], 'is behind', mod_name[t]])
-                        else:
-                            infront_behind.append([mod_name[s], 'is infront', mod_name[t]])
+                        if m == 0 or n == 0:
+                            if mod_dist[s] > mod_dist[t]:
+                                infront_behind.append([mod_name[s], 'is behind', mod_name[t]])
+                            else:
+                                infront_behind.append([mod_name[s], 'is infront', mod_name[t]])
                 c1 += 1
 
             else:
@@ -203,26 +230,26 @@ def front_back(metadata, res1, box, mod_name, mod_dist):
                     # Boxes intersect but dont contain each other
                     c3 += 1
 
-                    for p in range(len(metadata)):
-                        if metadata[p]['objectId'] == mod_name[s]:
-                            if metadata[p]['parentReceptacles']:
-                                if mod_name[t] in metadata[p]['parentReceptacles']:
+                    for p in range(len(supp)):
+                        if supp[p]['objectId'] == mod_name[s]:
+                            if supp[p]['parentReceptacles']:
+                                if mod_name[t] in supp[p]['parentReceptacles']:
                                     m = 1
 
-                        if metadata[p]['receptacleObjectIds']:
-                            if mod_name[t] in metadata[p]['receptacleObjectIds']:
-                                n = 1
+                            if supp[p]['receptacleObjectIds']:
+                                if mod_name[t] in supp[p]['receptacleObjectIds']:
+                                    n = 1
 
-                        if m == 0 or n == 0:
-                            if mod_dist[s] > mod_dist[t]:
-                                infront_behind.append([mod_name[s], 'is behind', mod_name[t]])
-                            else:
-                                infront_behind.append([mod_name[s], 'is in-front of', mod_name[t]])
+                            if m == 0 or n == 0:
+                                if mod_dist[s] > mod_dist[t]:
+                                    infront_behind.append([mod_name[s], 'is behind', mod_name[t]])
+                                else:
+                                    infront_behind.append([mod_name[s], 'is in-front of', mod_name[t]])
 
     print('Number of containing bounding boxes: ', c1)
     print('Number of bounding boxes that dont intersect or contain: ', c2)
     print('Number of bounding boxes that intersect but dont contain: ', c3)
-    
+   
     return infront_behind
 
 
@@ -233,19 +260,19 @@ if __name__ == '__main__':
     event = controller.step(action='MoveAhead', renderObjectImage=True)
 
     metadata = event.metadata['objects']
-
-    res1, box, mod_name, mod_dist, objpos = prepare_data(metadata, event)
+   
+    supp, put, res1, box, mod_name, mod_dist, objpos = prepare_data(metadata, event)
 
     print('On top and Below Relations')
-    tp = top_down(metadata)
+    tp = top_down(supp)
     print(tp)
 
     print('Near and Left/Right Relation')
-    nlr = near_lr(metadata, objpos)
+    nlr = near_lr(put, objpos)
     print(nlr)
 
     print('Infront and Behind Relation')
-    fb = front_back(metadata, res1, box, mod_name, mod_dist)
+    fb = front_back(supp, res1, box, mod_name, mod_dist)
     print(fb)
 
     # Displaying Bounding Boxes
