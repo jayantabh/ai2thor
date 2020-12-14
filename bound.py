@@ -23,9 +23,20 @@ def prepare_data(metadata, event):
     for i in objs:
         if i not in inin:
             del res1[i]
- 
-    upd_obj = res1.keys()
 
+    near_obj = []
+    near_raw=list(res1.keys())
+    print(near_raw)
+    for i in range(len(near_raw)):
+        near_obj.append(near_raw[i].split('|')[0])
+    print(near_obj) 
+    near_box=list(res1.values())
+    upd_obj = res1.keys()
+    print(len(near_box))
+    print(len(near_obj))
+    #near_dict = dict(zip(near_obj, q))
+    #print(near_box)
+    #print(res1)
     ind = []
     for j in range(len(metadata)):
         i = metadata[j]['objectId']
@@ -50,9 +61,10 @@ def prepare_data(metadata, event):
     put = supp
     search = ['Bed','CounterTop','DiningTable','Floor','ShelvingUnit','StoveBurner']
     for i in search:
-      for j in range(len(put)):
+      for j in range(len(put)): 
         if put[j]['objectType'] == i:
            d.append(j)
+    print(d)
     for i in sorted(d,reverse=True):
         del put[i]
 
@@ -60,7 +72,7 @@ def prepare_data(metadata, event):
        objpos.append([put[i]['name'],put[i]['position']])
 
 
-    return supp, put, res1, box, mod_name, mod_dist, objpos
+    return supp, put, res1, box, mod_name, mod_dist, objpos, near_box, near_obj
 
 
 def process_relations(object_ids, relations):
@@ -103,62 +115,167 @@ def top_down(supp):
     topdown = []
 
     for i in range(len(supp)):
+       # print(supp[i])
+        x_c=[]
+        y_c=[]
+        z_c=[]
+
+        #if supp[i]['objectOrientedBoundingBox'] != None:
+        axisaln = supp[i]['axisAlignedBoundingBox']['cornerPoints']
+      #print(len(axisaln))
+      #if len(axisaln) > 3 :
+        for j in axisaln:
+            x_c.append(j[0])
+            y_c.append(j[1])
+            z_c.append(j[2])
+        X_max= max(x_c)
+        Y_max= max(y_c)
+        Z_max= max(z_c)
+        X_min= min(x_c)
+        Y_min= min(y_c)
+        Z_min= min(z_c)
+
         if isinstance(supp[i]['receptacleObjectIds'], list):
             for rec_object_ids in supp[i]['receptacleObjectIds']:
-                topdown.append(
+                for j in range(len(supp)): 
+                    if supp[j]['objectId'] == rec_object_ids:
+#                        point = supp[j]['axisAlignedBoundingBox']['center']
+                        point = supp[j]['position']
+
+                        point = list(point.values())
+                        print(point)
+                        break
+                if X_min <= point[0] <= X_max and Y_min <= point[1] <= Y_max  and Z_min <= point[2] <= Z_max:
+                    topdown.append(
+                    [
+                        rec_object_ids,
+                        'inside of',
+                        supp[i]['objectId']
+                    ]
+                    )
+                else:
+                    topdown.append(
                     [
                         rec_object_ids,
                         'on top of',
                         supp[i]['objectId']
                     ]
-                )
-        else:
-            topdown.append(
-                [
-                    supp[i]['receptacleObjectIds'],
-                    'on top of',
-                    supp[i]['objectId']
-                ]
-            )
+                    )
+
+      #  else:
+      #      topdown.append(
+      #          [
+      #              supp[i]['receptacleObjectIds'],
+      #              'on top of',
+      #              supp[i]['objectId']
+      #          ]
+      #      )
 
         if isinstance(supp[i]['parentReceptacles'], list):
             for parent_object_ids in supp[i]['parentReceptacles']:
-                topdown.append(
+                for j in range(len(supp)): 
+                    if supp[j]['objectId'] == parent_object_ids:
+#                        point = supp[j]['axisAlignedBoundingBox']['center']
+                        point1 = supp[j]['position']
+
+                        point1 = list(point1.values())
+                if X_min <= point1[0] <= X_max and Y_min <= point1[1] <= Y_max and Z_min <= point1[2] <= Z_max:
+                    topdown.append(
+                    [
+                        supp[i]['objectId'],
+                        'inside of',
+                        parent_object_ids
+                    ]
+                    )
+                else:
+                    topdown.append(
                     [
                         supp[i]['objectId'],
                         'on top of',
                         parent_object_ids
                     ]
-                )
-        else:
-            topdown.append(
-                [
-                    supp[i]['objectId'],
-                    'on top of',
-                    supp[i]['parentReceptacles']
-                ]
-            )
+                    )
+       # else:
+       #     topdown.append(
+       #         [
+       #             supp[i]['objectId'],
+       #             'on top of',
+       #             supp[i]['parentReceptacles']
+       #         ]
+       #     )
 
     return topdown
 
 
 #'Near and Left/Right Relation'
-def near_lr(put, objpos):
+def near_lr(put, objpos, near_box, near_obj):
     near_reldist = []
     far_reldist = []
+#    print(near_box[0])
+#    for i in range(len(put) - 1):
+#        for j in range(i + 1, len(put)):
+#            distance = np.linalg.norm(np.array(list(objpos[i][1].values())) - np.array(list(objpos[j][1].values())))
+#            if distance < 0.25:
+#               if list(objpos[i][1].values())[0] >= list(objpos[j][1].values())[0]:
+#                    lr = 'left'
+#                else:
+#                    lr = 'right'
+#                near_reldist.append([put[i]['objectId'], f'to {lr} of', put[j]['objectId']])
+#            else:
+#                far_reldist.append([put[i]['objectId'], 'far', put[j]['objectId']])
 
-    for i in range(len(put) - 1):
-        for j in range(i + 1, len(put)):
-            distance = np.linalg.norm(np.array(list(objpos[i][1].values())) - np.array(list(objpos[j][1].values())))
-            if distance < 0.25:
-                if list(objpos[i][1].values())[0] >= list(objpos[j][1].values())[0]:
-                    lr = 'left'
-                else:
-                    lr = 'right'
-                near_reldist.append([put[i]['objectId'], f'to {lr} of', put[j]['objectId']])
-            else:
-                far_reldist.append([put[i]['objectId'], 'far', put[j]['objectId']])
+    for  i in range(len(near_box)):
+        for j in range(i+1, len(near_box)):
+            #(x1, y1, x1b, y1b), (x2, y2, x2b, y2b)
+            x1 = near_box[i][0]
+            y1 = near_box[i][1]
+            x1b = near_box[i][2]
+            y1b = near_box[i][3]
+            x2 = near_box[j][0]
+            y2 = near_box[j][1]
+            x2b = near_box[j][2]
+            y2b = near_box[j][3]
 
+            left = x2b < x1
+            right = x1b < x2
+            bottom = y2b < y1
+            top = y1b < y2
+            if top and left:
+                dist= np.linalg.norm(np.array((x1, y1b))- np.array((x2b, y2)))
+                if dist<10:
+                    near_reldist.append([near_obj[i], 'is top-left of' , near_obj[j]])
+            elif left and bottom:
+                dist= np.linalg.norm(np.array((x1, y1))- np.array((x2b, y2b)))
+                if dist<10:
+                    near_reldist.append([near_obj[i], 'is bottom-right of' , near_obj[j]])  
+            elif bottom and right:
+                dist= np.linalg.norm(np.array((x1b, y1))- np.array((x2, y2b)))
+                if dist<10:
+                    near_reldist.append([near_obj[i], 'is bottom-left of' , near_obj[j]])
+            elif right and top:
+                dist= np.linalg.norm(np.array((x1b, y1b))- np.array((x2, y2)))
+                if dist<10:
+                    near_reldist.append([near_obj[i], 'is top-right of' , near_obj[j]])
+            elif left:
+                dist= x1 - x2b
+                if dist<10:
+                    near_reldist.append([near_obj[i], 'is to right of' , near_obj[j]])
+            elif right:
+                dist= x2 - x1b
+                if dist<10:
+                    near_reldist.append([near_obj[i], 'is to left of' , near_obj[j]])
+            elif bottom:
+                dist= y1 - y2b
+                if dist<10:
+                    near_reldist.append([near_obj[i], 'is bottom of' , near_obj[j]])
+            elif top:
+                dist= y2 - y1b
+                if dist<10:
+                    near_reldist.append([near_obj[i], 'is top of' , near_obj[j]]) 
+#            print(dist)
+#            if dist < 10:
+#                near_reldist.append([near_obj[i], 'near' , near_obj[j]])
+#                print('Objects are near')
     return near_reldist
 
  
@@ -261,14 +378,14 @@ if __name__ == '__main__':
 
     metadata = event.metadata['objects']
    
-    supp, put, res1, box, mod_name, mod_dist, objpos = prepare_data(metadata, event)
+    supp, put, res1, box, mod_name, mod_dist, objpos, near_box, near_obj = prepare_data(metadata, event)
 
     print('On top and Below Relations')
     tp = top_down(supp)
     print(tp)
 
     print('Near and Left/Right Relation')
-    nlr = near_lr(put, objpos)
+    nlr = near_lr(put, objpos, near_box, near_obj)
     print(nlr)
 
     print('Infront and Behind Relation')
