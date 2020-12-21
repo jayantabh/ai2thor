@@ -71,7 +71,6 @@ def prepare_data(metadata, event):
     for i in range(len(put)):
        objpos.append([put[i]['name'],put[i]['position']])
 
-
     return supp, put, res1, box, mod_name, mod_dist, objpos, near_box, near_obj
 
 
@@ -137,14 +136,21 @@ def top_down(supp):
 
         if isinstance(supp[i]['receptacleObjectIds'], list):
             for rec_object_ids in supp[i]['receptacleObjectIds']:
-                for j in range(len(supp)): 
+
+                point = None
+
+                for j in range(len(supp)):
                     if supp[j]['objectId'] == rec_object_ids:
-#                        point = supp[j]['axisAlignedBoundingBox']['center']
+                        # point = supp[j]['axisAlignedBoundingBox']['center']
                         point = supp[j]['position']
 
                         point = list(point.values())
                         print(point)
                         break
+
+                if point is None:
+                    continue
+                    
                 if X_min <= point[0] <= X_max and Y_min <= point[1] <= Y_max  and Z_min <= point[2] <= Z_max:
                     topdown.append(
                     [
@@ -173,12 +179,18 @@ def top_down(supp):
 
         if isinstance(supp[i]['parentReceptacles'], list):
             for parent_object_ids in supp[i]['parentReceptacles']:
-                for j in range(len(supp)): 
+                point1 = None
+
+                for j in range(len(supp)):
                     if supp[j]['objectId'] == parent_object_ids:
-#                        point = supp[j]['axisAlignedBoundingBox']['center']
+                        # point = supp[j]['axisAlignedBoundingBox']['center']
                         point1 = supp[j]['position']
 
                         point1 = list(point1.values())
+
+                if point1 is None:
+                    continue
+
                 if X_min <= point1[0] <= X_max and Y_min <= point1[1] <= Y_max and Z_min <= point1[2] <= Z_max:
                     topdown.append(
                     [

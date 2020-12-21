@@ -7,20 +7,26 @@ import itertools
 import numpy as np
 from bound import *
 from relations import *
+from attributes import *
 import pickle
 import os
 
 REJECT_THRESHOLD = 12
+NUM_VALID_POSITIONS = 5
 plot_bb = True
 facecolor = 'r'
 edgecolor = 'None'
 alpha = 0.5
 
+INVALID_OBJECTS = set(
+    'cube.001'
+)
+
 controller = Controller(
-    scene='FloorPlan28',
-    width=600,
-    height=600,
-    gridSize=0.25,
+    scene='FloorPlan1',
+    width=256,
+    height=256,
+    gridSize=0.05,
     renderObjectImage=True,
     agentControllerType='Physics',
     fieldOfView='120'
@@ -42,9 +48,20 @@ event = controller.step('Pass')
 # z_max = np.amax(bounds[:, 2])
 
 num_iters = 10
+num_iters_surfaces = 5
 
-floor_types = [str(i) for i in range(1, 5)]
-floor_numbers = ['0' + str(i) for i in range(1, 10)] + [str(i) for i in range(10, 31)]
+surface_types = [
+    'CoffeeTable',
+    'DiningTable',
+    'SideTable',
+    'Sink',
+    'Sofa',
+    'CounterTop',
+    'StoveBurner'
+]
+
+floor_types = [str(i) for i in range(1, 5)] # 1, 5
+floor_numbers = ['0' + str(i) for i in range(1, 5)] + [str(i) for i in range(10, 31)] # 1, 10
 # floor_types = [floor_types[0]]
 # floor_numbers = [floor_numbers[0]]
 
@@ -60,88 +77,243 @@ for floor_type in floor_types:
 
         controller.reset(scene=floor)
 
-        for i in range(num_iters):
-            # fig, ax = plt.subplots(1)
-            print("###########################")
-            event = controller.step(action='GetReachablePositions')
-            valid_positions = event.metadata['actionReturn']
+        # for i in range(num_iters):
+        #     # fig, ax = plt.subplots(1)
+        #     print("###########################")
+        #     event = controller.step(action='GetReachablePositions')
+        #     valid_positions = event.metadata['actionReturn']
+        #
+        #     print(valid_positions)
+        #
+        #     idx = np.random.choice(np.arange(0, len(valid_positions)))
+        #
+        #     x = valid_positions[idx]['x']
+        #     y = valid_positions[idx]['y']
+        #     z = valid_positions[idx]['z']
+        #
+        #     horizon = np.random.normal(loc=2.5, scale=10.0)
+        #     rotation = 180 * np.random.random_sample() - 90
+        #
+        #     controller.step(action='InitialRandomSpawn',
+        #                     randomSeed=0,
+        #                     forceVisible=True,
+        #                     numPlacementAttempts=5,
+        #                     placeStationary=True)
+        #
+        #     event = controller.step(action='TeleportFull',
+        #                             x=x,
+        #                             y=y,
+        #                             z=z,
+        #                             rotation=dict(x=0.0, y=rotation, z=0.0),
+        #                             horizon=horizon)
+        #
+        #     metadata = event.metadata['objects']
+        #
+        #     with open('metadata.json', 'w') as outfile:
+        #         json.dump(event.metadata, outfile)
+        #
+        #     img = event.frame
+        #
+        #     bounding_boxes = event.instance_detections2D
+        #
+        #     labels = []
+        #     object_ids = []
+        #     bounding_boxes_list = []
+        #
+        #     if len(bounding_boxes) <= REJECT_THRESHOLD:
+        #         print("Reject Image")
+        #         continue
+        #
+        #     boxes = []
+        #     # ax.imshow(img)
+        #
+        #     for key in bounding_boxes:
+        #         # label = key.split('|')[0]
+        #         # labels.append(label)
+        #
+        #         bounding_box = bounding_boxes[key]
+        #
+        #         # if plot_bb:
+        #         #     xy = (bounding_box[0], bounding_box[1])
+        #         #     width = bounding_box[2] - bounding_box[0]
+        #         #     height = bounding_box[3] - bounding_box[1]
+        #         #
+        #         #     rec = Rectangle(xy, width, height, linewidth=1, edgecolor='r', facecolor='none')
+        #         #     ax.add_patch(rec)
+        #
+        #         object_ids.append(key)
+        #         bounding_boxes_list.append(bounding_box)
+        #
+        #     plt.imsave(os.path.join(save_path, str(floor_type) + str(floor_number) + '_' + str(image_id) + '.png'), img)
+        #
+        #     res1, box, mod_name, mod_dist, objpos = prepare_data(metadata, event)
+        #
+        #     relations = []
+        #
+        #     # On top and Below Relations
+        #     tp = top_down(metadata)
+        #     relations.extend(tp)
+        #
+        #     # Near and Left/Right Relation
+        #     nlr = near_lr(metadata, objpos)
+        #     relations.extend(nlr)
+        #
+        #     # Infront and Behind Relation
+        #     fb = front_back(metadata, res1, box, mod_name, mod_dist)
+        #     relations.extend(fb)
+        #
+        #     has = has_relations(metadata, inc=0.1)
+        #     relations.extend(has)
+        #
+        #     relations_map = process_relations(object_ids, relations)
+        #
+        #     image_data[image_id] = (object_ids, bounding_boxes_list, relations_map)
+        #
+        #     for key in relations_map:
+        #         for o1, o2 in relations_map[key]:
+        #             print(key, object_ids[o1], object_ids[o2])
+        #
+        #     image_id += 1
 
-            idx = np.random.choice(np.arange(0, len(valid_positions)))
+        event = controller.step("Pass")
+        metadata = event.metadata['objects']
+        surface_locations = []
 
-            x = valid_positions[idx]['x']
-            y = valid_positions[idx]['y']
-            z = valid_positions[idx]['z']
+        for object_data in metadata:
+            if object_data['objectType'] in surface_types:
+                surface_locations.append((object_data['position'], object_data['axisAlignedBoundingBox']['size']))
 
-            horizon = np.random.normal(loc=2.5, scale=10.0)
-            rotation = 180 * np.random.random_sample() - 90
+        for surface_center, size in surface_locations:
+            controller.reset(scene=floor)
 
-            controller.step(action='InitialRandomSpawn',
-                            randomSeed=0,
-                            forceVisible=True,
-                            numPlacementAttempts=5,
-                            placeStationary=True)
+            if surface_center is None or size is None:
+                continue
 
-            event = controller.step(action='TeleportFull',
-                                    x=x,
-                                    y=y,
-                                    z=z,
-                                    rotation=dict(x=0.0, y=rotation, z=0.0),
-                                    horizon=horizon)
+            locations = [surface_center]
 
-            metadata = event.metadata['objects']
+            for k in range(num_iters_surfaces):
+                r = np.random.random(3)
+                x_r = surface_center['x'] + (r[0] - 0.5) * size['x']
+                y_r = surface_center['y'] + (r[1] - 0.5) * size['y']
+                z_r = surface_center['x'] + (r[2] - 0.5) * size['z']
 
-            with open('metadata.json', 'w') as outfile:
-                json.dump(event.metadata, outfile)
+                locations.append({'x': x_r, 'y': y_r, 'z': z_r})
 
-            img = event.frame
+            for location in locations:
 
-            bounding_boxes = event.instance_detections2D
+                # fig, ax = plt.subplots(1)
+                print(f"######################################################  {image_id} "
+                      f"######################################################")
+                event = controller.step(action='GetReachablePositions')
+                valid_positions = event.metadata['actionReturn']
+                agent_location = event.metadata['agent']['position']
 
-            labels = []
-            object_ids = []
-            bounding_boxes_list = []
+                if valid_positions is None:
+                    continue
 
-            if len(bounding_boxes) <= REJECT_THRESHOLD:
-                print("Reject Image")
-                # plt.imshow(img)
-                # plt.show()
-            else:
+                position_distance = []
+
+                for position in valid_positions:
+                    position_distance.append(distance(position, location))
+
+                position_distance = np.array(position_distance)
+
+                best_positions = position_distance.argsort()[:min(NUM_VALID_POSITIONS, len(valid_positions))]
+
+                use_position = valid_positions[best_positions[np.random.randint(0, best_positions.shape[0])]]
+
+                horizon = np.random.normal(loc=2.5, scale=10.0)
+                rotation = get_angle_to_look_at(
+                    (
+                        location['x'],
+                        location['z']
+                    ),
+                    (
+                        agent_location['x'],
+                        agent_location['z']
+                    )
+                )
+
+                x, y, z = use_position['x'], use_position['y'], use_position['z']
+
+                seed = np.random.randint(100000)
+
+                controller.step(action='InitialRandomSpawn',
+                                randomSeed=seed,
+                                forceVisible=True,
+                                numPlacementAttempts=5,
+                                placeStationary=True)
+
+                event = controller.step(action='TeleportFull',
+                                        x=x,
+                                        y=y,
+                                        z=z,
+                                        rotation=dict(x=0.0, y=rotation, z=0.0),
+                                        horizon=horizon)
+
+                metadata = event.metadata['objects']
+
+                with open('metadata.json', 'w') as outfile:
+                    json.dump(event.metadata, outfile)
+
+                img = event.frame
+
+                bounding_boxes = event.instance_detections2D
+
+                labels = []
+                object_ids = []
+                bounding_boxes_list = []
+
+                # if len(bounding_boxes) <= REJECT_THRESHOLD:
+                #     print("Reject Image")
+                #     continue
+
                 boxes = []
                 # ax.imshow(img)
+                # plt.show()
 
                 for key in bounding_boxes:
-                    # label = key.split('|')[0]
-                    # labels.append(label)
-
+                    print(key)
                     bounding_box = bounding_boxes[key]
 
-                    # if plot_bb:
-                    #     xy = (bounding_box[0], bounding_box[1])
-                    #     width = bounding_box[2] - bounding_box[0]
-                    #     height = bounding_box[3] - bounding_box[1]
-                    #
-                    #     rec = Rectangle(xy, width, height, linewidth=1, edgecolor='r', facecolor='none')
-                    #     ax.add_patch(rec)
+                    print(bounding_box)
+
+                    if key.split('.')[0] in INVALID_OBJECTS:
+                        continue
 
                     object_ids.append(key)
                     bounding_boxes_list.append(bounding_box)
 
-                plt.imsave(os.path.join(save_path, str(floor_type) + str(floor_number) + '_' + str(image_id) + '.png'), img)
+                images_path = os.path.join(save_path, 'images/')
 
-                res1, box, mod_name, mod_dist, objpos = prepare_data(metadata, event)
+                if not os.path.exists(images_path):
+                    os.mkdir(images_path)
+
+                plt.imsave(
+                    os.path.join(
+                        images_path,
+                        str(floor_type) + str(floor_number) + '_' + str(image_id) + '.png'
+                    ),
+                    img
+                )
+
+                print(image_id)
+                print(str(floor_type) + str(floor_number) + '_' + str(image_id) + '.png')
+
+                supp, put, res1, box, mod_name, mod_dist, objpos, near_box, near_obj = prepare_data(metadata, event)
 
                 relations = []
 
                 # On top and Below Relations
-                tp = top_down(metadata)
+                tp = top_down(supp)
                 relations.extend(tp)
 
                 # Near and Left/Right Relation
-                nlr = near_lr(metadata, objpos)
+                nlr = near_lr(put, objpos, near_box, near_obj)
                 relations.extend(nlr)
 
                 # Infront and Behind Relation
-                fb = front_back(metadata, res1, box, mod_name, mod_dist)
+                fb = front_back(supp, res1, box, mod_name, mod_dist)
                 relations.extend(fb)
 
                 has = has_relations(metadata, inc=0.1)
@@ -149,13 +321,19 @@ for floor_type in floor_types:
 
                 relations_map = process_relations(object_ids, relations)
 
-                image_data[image_id] = (object_ids, bounding_boxes_list, relations_map)
+                attr_map = attributes(metadata, object_ids)
+
+                image_data[image_id] = (object_ids, bounding_boxes_list, relations_map, attr_map)
 
                 for key in relations_map:
                     for o1, o2 in relations_map[key]:
                         print(key, object_ids[o1], object_ids[o2])
 
+                for object_id in attr_map:
+                    print(object_id, attr_map[object_id])
+
                 image_id += 1
+
 
 with open(os.path.join(save_path, 'data.pickle'), 'wb') as f:
     pickle.dump(image_data, f)

@@ -4,6 +4,20 @@ from matplotlib import pyplot as plt
 from collections import defaultdict
 
 
+def get_angle_to_look_at(point, agent_location):
+    base_vector = (0, 1)
+    req_vector = (point[0] - agent_location[0], point[1] - agent_location[1])
+
+    dot = base_vector[0] * req_vector[0] + base_vector[1] * req_vector[1]
+    det = base_vector[0] * req_vector[1] - base_vector[1] * req_vector[0]
+
+    return np.arctan2(det, dot) * 180 / np.pi
+
+
+def distance(p1, p2):
+    return np.sqrt((p1['x'] - p2['x']) ** 2 + (p1['y'] - p2['y']) ** 2 + (p1['z'] - p2['z']) ** 2)
+
+
 def point_inside_aabb(point, extents):
     return extents[0][0] <= point[0] <= extents[0][1] and \
            extents[1][0] <= point[1] <= extents[1][1] and \
@@ -77,5 +91,5 @@ def has_relations(metadata, inc=0.05):
 
     return relations
 
-
-
+if __name__ == "__main__":
+    print(get_angle_to_look_at())
