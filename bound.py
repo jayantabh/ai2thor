@@ -150,7 +150,7 @@ def top_down(supp):
 
                 if point is None:
                     continue
-                    
+
                 if X_min <= point[0] <= X_max and Y_min <= point[1] <= Y_max  and Z_min <= point[2] <= Z_max:
                     topdown.append(
                     [

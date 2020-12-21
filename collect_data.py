@@ -24,8 +24,8 @@ INVALID_OBJECTS = set(
 
 controller = Controller(
     scene='FloorPlan1',
-    width=256,
-    height=256,
+    width=100,
+    height=100,
     gridSize=0.05,
     renderObjectImage=True,
     agentControllerType='Physics',
@@ -67,6 +67,10 @@ floor_numbers = ['0' + str(i) for i in range(1, 5)] + [str(i) for i in range(10,
 
 image_data = {}
 image_id = 0
+top_down_length = 0
+near_left_right_length = 0
+infront_behind_length = 0
+
 
 for floor_type in floor_types:
     for floor_number in floor_numbers:
@@ -264,9 +268,9 @@ for floor_type in floor_types:
                 object_ids = []
                 bounding_boxes_list = []
 
-                # if len(bounding_boxes) <= REJECT_THRESHOLD:
-                #     print("Reject Image")
-                #     continue
+                if len(bounding_boxes) <= REJECT_THRESHOLD:
+                    print("Reject Image")
+                    continue
 
                 boxes = []
                 # ax.imshow(img)
@@ -306,14 +310,17 @@ for floor_type in floor_types:
 
                 # On top and Below Relations
                 tp = top_down(supp)
+                top_down_length += 1
                 relations.extend(tp)
 
                 # Near and Left/Right Relation
                 nlr = near_lr(put, objpos, near_box, near_obj)
+                near_left_right_length += 1
                 relations.extend(nlr)
 
                 # Infront and Behind Relation
                 fb = front_back(supp, res1, box, mod_name, mod_dist)
+                infront_behind_length += 1
                 relations.extend(fb)
 
                 has = has_relations(metadata, inc=0.1)
@@ -334,6 +341,13 @@ for floor_type in floor_types:
 
                 image_id += 1
 
+print('Total images captured :', image_id)
+print('Number of top-below relation :', top_down_length)
+print('Number of near- left/right relation :', near_left_right_length)
+print('Number of front-back relation :', infront_behind_length)
+print('Density for top-below relation :', float(top_down_length/image_id))
+print('Density for near- left/right relation :', float(near_left_right_length/image_id))
+print('Density for front-back relation :', float(infront_behind_length/image_id))
 
 with open(os.path.join(save_path, 'data.pickle'), 'wb') as f:
     pickle.dump(image_data, f)
