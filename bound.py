@@ -236,7 +236,7 @@ def near_lr(put, objpos, near_box, near_obj):
 #            else:
 #                far_reldist.append([put[i]['objectId'], 'far', put[j]['objectId']])
 
-    for  i in range(len(near_box)):
+    for i in range(len(near_box)):
         for j in range(i+1, len(near_box)):
             #(x1, y1, x1b, y1b), (x2, y2, x2b, y2b)
             x1 = near_box[i][0]

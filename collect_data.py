@@ -24,8 +24,8 @@ INVALID_OBJECTS = set(
 
 controller = Controller(
     scene='FloorPlan1',
-    width=100,
-    height=100,
+    width=512,
+    height=512,
     gridSize=0.05,
     renderObjectImage=True,
     agentControllerType='Physics',
