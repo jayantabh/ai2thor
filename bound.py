@@ -142,9 +142,15 @@ def top_down(supp):
     #Checking for child receptacle objects for considered object 
         if isinstance(supp[i]['receptacleObjectIds'], list):
             for rec_object_ids in supp[i]['receptacleObjectIds']:
+<<<<<<< HEAD
                 point = None
                 
                 #Getting position of child receptacle
+=======
+
+                point = None
+
+>>>>>>> origin
                 for j in range(len(supp)):
                     if supp[j]['objectId'] == rec_object_ids:
                         # point = supp[j]['axisAlignedBoundingBox']['center']
@@ -156,10 +162,14 @@ def top_down(supp):
 
                 if point is None:
                     continue
+<<<<<<< HEAD
                     
             #Comparing receptacle positon with max-min coordinates for (on vs in) relation
             #If receptacle position lies within the bounds of max-min, it is defined as 'in'
             #If receptacle position lies outside the bounds of max-min, it is defined as 'on'
+=======
+
+>>>>>>> origin
                 if X_min <= point[0] <= X_max and Y_min <= point[1] <= Y_max  and Z_min <= point[2] <= Z_max:
                     topdown.append(
                     [
@@ -196,7 +206,10 @@ def top_down(supp):
             for parent_object_ids in supp[i]['parentReceptacles']:
                 point1 = None
 
+<<<<<<< HEAD
             #Getting position of child receptacle
+=======
+>>>>>>> origin
                 for j in range(len(supp)):
                     if supp[j]['objectId'] == parent_object_ids:
                         # point = supp[j]['axisAlignedBoundingBox']['center']
@@ -207,9 +220,12 @@ def top_down(supp):
                 if point1 is None:
                     continue
 
+<<<<<<< HEAD
             #Comparing receptacle positon with max-min coordinates for (on vs in) relation
             #If receptacle position lies within the bounds of max-min, it is defined as 'in'
             #If receptacle position lies outside the bounds of max-min, it is defined as 'on'
+=======
+>>>>>>> origin
                 if X_min <= point1[0] <= X_max and Y_min <= point1[1] <= Y_max and Z_min <= point1[2] <= Z_max:
                     topdown.append(
                     [
@@ -248,9 +264,27 @@ def top_down(supp):
 
 def near_lr(put, objpos, near_box, near_obj):
     near_reldist = []
+<<<<<<< HEAD
     
 # Loop through all objects in Scene
     for  i in range(len(near_box)):
+=======
+    far_reldist = []
+#    print(near_box[0])
+#    for i in range(len(put) - 1):
+#        for j in range(i + 1, len(put)):
+#            distance = np.linalg.norm(np.array(list(objpos[i][1].values())) - np.array(list(objpos[j][1].values())))
+#            if distance < 0.25:
+#               if list(objpos[i][1].values())[0] >= list(objpos[j][1].values())[0]:
+#                    lr = 'left'
+#                else:
+#                    lr = 'right'
+#                near_reldist.append([put[i]['objectId'], f'to {lr} of', put[j]['objectId']])
+#            else:
+#                far_reldist.append([put[i]['objectId'], 'far', put[j]['objectId']])
+
+    for i in range(len(near_box)):
+>>>>>>> origin
         for j in range(i+1, len(near_box)):
 
 # Getting bounding box coordinates of 2 objects in consideration

@@ -24,8 +24,13 @@ INVALID_OBJECTS = set(
 
 controller = Controller(
     scene='FloorPlan1',
+<<<<<<< HEAD
     width=256,
     height=256,
+=======
+    width=512,
+    height=512,
+>>>>>>> origin
     gridSize=0.05,
     renderObjectImage=True,
     agentControllerType='Physics',
@@ -67,9 +72,16 @@ floor_numbers = ['0' + str(i) for i in range(1, 5)] + [str(i) for i in range(10,
 
 image_data = {}
 image_id = 0
+<<<<<<< HEAD
 on_below_len=0
 left_right_len=0
 front_back_len=0
+=======
+top_down_length = 0
+near_left_right_length = 0
+infront_behind_length = 0
+
+>>>>>>> origin
 
 for floor_type in floor_types:
     for floor_number in floor_numbers:
@@ -267,9 +279,15 @@ for floor_type in floor_types:
                 object_ids = []
                 bounding_boxes_list = []
 
+<<<<<<< HEAD
                 # if len(bounding_boxes) <= REJECT_THRESHOLD:
                 #     print("Reject Image")
                 #     continue
+=======
+                if len(bounding_boxes) <= REJECT_THRESHOLD:
+                    print("Reject Image")
+                    continue
+>>>>>>> origin
 
                 boxes = []
                 # ax.imshow(img)
@@ -308,21 +326,39 @@ for floor_type in floor_types:
                 relations = []
 
                 # On top and Below Relations
+<<<<<<< HEAD
                 on_below = top_down(supp)
                 relations.extend(on_below)
                 on_below_len = on_below_len + len(on_below)
+=======
+                tp = top_down(supp)
+                top_down_length += 1
+                relations.extend(tp)
+>>>>>>> origin
 
                 
                 # Near and Left/Right Relation
+<<<<<<< HEAD
                 left_right = near_lr(put, objpos, near_box, near_obj)
                 relations.extend(left_right)
                 left_right_len = left_right_len + len(left_right)
+=======
+                nlr = near_lr(put, objpos, near_box, near_obj)
+                near_left_right_length += 1
+                relations.extend(nlr)
+>>>>>>> origin
 
                 
                 # Infront and Behind Relation
+<<<<<<< HEAD
                 front_back = front_back(supp, res1, box, mod_name, mod_dist)
                 relations.extend(front_back)
                 front_back_len = front_back_len+len(front_back)
+=======
+                fb = front_back(supp, res1, box, mod_name, mod_dist)
+                infront_behind_length += 1
+                relations.extend(fb)
+>>>>>>> origin
 
                 
                 has = has_relations(metadata, inc=0.1)
@@ -344,12 +380,21 @@ for floor_type in floor_types:
                 image_id += 1
 
 print('Total images captured :', image_id)
+<<<<<<< HEAD
 print('Number of top-below relation :', on_below_len)
 print('Number of near- left/right relation :', left_right_len)
 print('Number of front-back relation :', front_back_len)
 print('Density for top-below relation :', float(on_below_len/image_id))
 print('Density for near- left/right relation :', float(left_right_len/image_id))
 print('Density for front-back relation :', float(front_back_len/image_id))
+=======
+print('Number of top-below relation :', top_down_length)
+print('Number of near- left/right relation :', near_left_right_length)
+print('Number of front-back relation :', infront_behind_length)
+print('Density for top-below relation :', float(top_down_length/image_id))
+print('Density for near- left/right relation :', float(near_left_right_length/image_id))
+print('Density for front-back relation :', float(infront_behind_length/image_id))
+>>>>>>> origin
 
 with open(os.path.join(save_path, 'data.pickle'), 'wb') as f:
     pickle.dump(image_data, f)
