@@ -10,20 +10,25 @@ def prepare_data(metadata, event):
     name = []
     objpos = []
     inin=[]
+    
+    #Getting objectId of all objects in Scene
     for i in range(len(metadata)):
         inin.append(metadata[i]['objectId'])
+    
+    supp = metadata #mmmmmmmmmmmmmmmmmmmmmmm
    
-    supp = metadata
-   
+    #Getting bounding boxes and storing as dict
     p = event.instance_detections2D
     q = list(p.values())
     objs = list(p.keys())
-
     res1 = dict(zip(objs, q))
+    
+    #Filtering out 'extra' objects
     for i in objs:
         if i not in inin:
             del res1[i]
 
+    
     near_obj = []
     near_raw=list(res1.keys())
     print(near_raw)
@@ -71,7 +76,6 @@ def prepare_data(metadata, event):
     for i in range(len(put)):
        objpos.append([put[i]['name'],put[i]['position']])
 
-
     return supp, put, res1, box, mod_name, mod_dist, objpos, near_box, near_obj
 
 
@@ -110,20 +114,20 @@ def process_relations(object_ids, relations):
     return relation_map
 
 
-#'On top and Below Relations'
+#...........................'On/In and Below Relations'........................
+
 def top_down(supp):
     topdown = []
-
+    
+#Looping through all objects in scene
     for i in range(len(supp)):
-       # print(supp[i])
+ 
         x_c=[]
         y_c=[]
         z_c=[]
 
-        #if supp[i]['objectOrientedBoundingBox'] != None:
+    #Getting max and min coordinates (to distinguish between on/in relation)
         axisaln = supp[i]['axisAlignedBoundingBox']['cornerPoints']
-      #print(len(axisaln))
-      #if len(axisaln) > 3 :
         for j in axisaln:
             x_c.append(j[0])
             y_c.append(j[1])
@@ -135,50 +139,77 @@ def top_down(supp):
         Y_min= min(y_c)
         Z_min= min(z_c)
 
+    #Checking for child receptacle objects for considered object 
         if isinstance(supp[i]['receptacleObjectIds'], list):
             for rec_object_ids in supp[i]['receptacleObjectIds']:
-                for j in range(len(supp)): 
+                point = None
+                
+                #Getting position of child receptacle
+                for j in range(len(supp)):
                     if supp[j]['objectId'] == rec_object_ids:
-#                        point = supp[j]['axisAlignedBoundingBox']['center']
+                        # point = supp[j]['axisAlignedBoundingBox']['center']
                         point = supp[j]['position']
 
                         point = list(point.values())
-                        print(point)
+                        #print(point)
                         break
+
+                if point is None:
+                    continue
+                    
+            #Comparing receptacle positon with max-min coordinates for (on vs in) relation
+            #If receptacle position lies within the bounds of max-min, it is defined as 'in'
+            #If receptacle position lies outside the bounds of max-min, it is defined as 'on'
                 if X_min <= point[0] <= X_max and Y_min <= point[1] <= Y_max  and Z_min <= point[2] <= Z_max:
                     topdown.append(
                     [
                         rec_object_ids,
-                        'inside of',
+                        ' inside of ',
                         supp[i]['objectId']
+                    ]
+                    )
+                    topdown.append(
+                    [
+                        supp[i]['objectId'],
+                        ' below ',
+                        rec_object_ids
                     ]
                     )
                 else:
                     topdown.append(
                     [
                         rec_object_ids,
-                        'on top of',
+                        ' on top of ',
                         supp[i]['objectId']
                     ]
                     )
+                    topdown.append(
+                    [
+                        supp[i]['objectId'],
+                        ' below ',
+                        rec_object_ids
+                    ]
+                    )
 
-      #  else:
-      #      topdown.append(
-      #          [
-      #              supp[i]['receptacleObjectIds'],
-      #              'on top of',
-      #              supp[i]['objectId']
-      #          ]
-      #      )
-
+    #Checking for parent receptacle objects for considered object
         if isinstance(supp[i]['parentReceptacles'], list):
             for parent_object_ids in supp[i]['parentReceptacles']:
-                for j in range(len(supp)): 
+                point1 = None
+
+            #Getting position of child receptacle
+                for j in range(len(supp)):
                     if supp[j]['objectId'] == parent_object_ids:
-#                        point = supp[j]['axisAlignedBoundingBox']['center']
+                        # point = supp[j]['axisAlignedBoundingBox']['center']
                         point1 = supp[j]['position']
 
                         point1 = list(point1.values())
+
+                if point1 is None:
+                    continue
+
+            #Comparing receptacle positon with max-min coordinates for (on vs in) relation
+            #If receptacle position lies within the bounds of max-min, it is defined as 'in'
+            #If receptacle position lies outside the bounds of max-min, it is defined as 'on'
                 if X_min <= point1[0] <= X_max and Y_min <= point1[1] <= Y_max and Z_min <= point1[2] <= Z_max:
                     topdown.append(
                     [
@@ -187,6 +218,13 @@ def top_down(supp):
                         parent_object_ids
                     ]
                     )
+                    topdown.append(
+                    [
+                        parent_object_ids,
+                        ' below ',
+                        supp[i]['objectId']
+                    ]
+                    )
                 else:
                     topdown.append(
                     [
@@ -195,94 +233,95 @@ def top_down(supp):
                         parent_object_ids
                     ]
                     )
-       # else:
-       #     topdown.append(
-       #         [
-       #             supp[i]['objectId'],
-       #             'on top of',
-       #             supp[i]['parentReceptacles']
-       #         ]
-       #     )
+                    topdown.append(
+                    [
+                        parent_object_ids,
+                        ' below ',
+                        supp[i]['objectId']
+                    ]
+                    )
 
     return topdown
 
 
-#'Near and Left/Right Relation'
+#.................'Near and Left/Right Relation'....................
+
 def near_lr(put, objpos, near_box, near_obj):
     near_reldist = []
-    far_reldist = []
-#    print(near_box[0])
-#    for i in range(len(put) - 1):
-#        for j in range(i + 1, len(put)):
-#            distance = np.linalg.norm(np.array(list(objpos[i][1].values())) - np.array(list(objpos[j][1].values())))
-#            if distance < 0.25:
-#               if list(objpos[i][1].values())[0] >= list(objpos[j][1].values())[0]:
-#                    lr = 'left'
-#                else:
-#                    lr = 'right'
-#                near_reldist.append([put[i]['objectId'], f'to {lr} of', put[j]['objectId']])
-#            else:
-#                far_reldist.append([put[i]['objectId'], 'far', put[j]['objectId']])
-
+    
+# Loop through all objects in Scene
     for  i in range(len(near_box)):
         for j in range(i+1, len(near_box)):
-            #(x1, y1, x1b, y1b), (x2, y2, x2b, y2b)
+
+# Getting bounding box coordinates of 2 objects in consideration
+        #Object1
             x1 = near_box[i][0]
             y1 = near_box[i][1]
             x1b = near_box[i][2]
             y1b = near_box[i][3]
+        #Object2
             x2 = near_box[j][0]
             y2 = near_box[j][1]
             x2b = near_box[j][2]
             y2b = near_box[j][3]
 
+        #Relative position of Object2 w.r.t Object1
             left = x2b < x1
             right = x1b < x2
             bottom = y2b < y1
             top = y1b < y2
+            
+        #Check for relative position and distance between 2 objects (if <10 consider relation) 
             if top and left:
                 dist= np.linalg.norm(np.array((x1, y1b))- np.array((x2b, y2)))
                 if dist<10:
-                    near_reldist.append([near_obj[i], 'is top-left of' , near_obj[j]])
+                    near_reldist.append([near_obj[i], ' is top-left of ' , near_obj[j]])
+                    near_reldist.append([near_obj[j], ' is bottom-right of ' , near_obj[i]])
             elif left and bottom:
                 dist= np.linalg.norm(np.array((x1, y1))- np.array((x2b, y2b)))
                 if dist<10:
-                    near_reldist.append([near_obj[i], 'is bottom-right of' , near_obj[j]])  
+                    near_reldist.append([near_obj[i], ' is bottom-right of ' , near_obj[j]])
+                    near_reldist.append([near_obj[j], ' is top-left of ' , near_obj[i]])                    
             elif bottom and right:
                 dist= np.linalg.norm(np.array((x1b, y1))- np.array((x2, y2b)))
                 if dist<10:
-                    near_reldist.append([near_obj[i], 'is bottom-left of' , near_obj[j]])
+                    near_reldist.append([near_obj[i], ' is bottom-left of ' , near_obj[j]])
+                    near_reldist.append([near_obj[j], ' is top-right of ' , near_obj[i]])
             elif right and top:
                 dist= np.linalg.norm(np.array((x1b, y1b))- np.array((x2, y2)))
                 if dist<10:
-                    near_reldist.append([near_obj[i], 'is top-right of' , near_obj[j]])
+                    near_reldist.append([near_obj[i], ' is top-right of ' , near_obj[j]])
+                    near_reldist.append([near_obj[j], ' is bottom-left of ' , near_obj[i]])
             elif left:
                 dist= x1 - x2b
                 if dist<10:
-                    near_reldist.append([near_obj[i], 'is to right of' , near_obj[j]])
+                    near_reldist.append([near_obj[i], ' is to right of ' , near_obj[j]])
+                    near_reldist.append([near_obj[j], ' is to left of ' , near_obj[i]])
             elif right:
                 dist= x2 - x1b
                 if dist<10:
-                    near_reldist.append([near_obj[i], 'is to left of' , near_obj[j]])
+                    near_reldist.append([near_obj[i], ' is to left of ' , near_obj[j]])
+                    near_reldist.append([near_obj[j], ' is to right of ' , near_obj[i]])
             elif bottom:
                 dist= y1 - y2b
                 if dist<10:
-                    near_reldist.append([near_obj[i], 'is bottom of' , near_obj[j]])
+                    near_reldist.append([near_obj[i], ' is bottom of ' , near_obj[j]])
+                    near_reldist.append([near_obj[j], ' is top of ' , near_obj[i]])
             elif top:
                 dist= y2 - y1b
                 if dist<10:
-                    near_reldist.append([near_obj[i], 'is top of' , near_obj[j]]) 
-#            print(dist)
-#            if dist < 10:
-#                near_reldist.append([near_obj[i], 'near' , near_obj[j]])
-#                print('Objects are near')
+                    near_reldist.append([near_obj[i], ' is top of ' , near_obj[j]]) 
+                    near_reldist.append([near_obj[j], ' is bottom of ' , near_obj[i]])
+
     return near_reldist
 
  
-# In-front and Behind Relation
+#.................................Infront and Behind Relation...................................
+
 def front_back(supp, res1, box, mod_name, mod_dist):
     infront_behind = []
 
+# Function to check if bounding boxes of 2 objects overlap or not 
     def inter_con(arr1, arr2):
         k = 1
         l = 0
@@ -309,19 +348,22 @@ def front_back(supp, res1, box, mod_name, mod_dist):
     c2 = 0
     c3 = 0
 
+    #Loop and get bounding boxes of all objects in scene
     for s in range(len(res1)-1):
         for t in range(s+1, len(res1)):
 
             j, i = inter_con(box[s], box[t])
-
+# 'i=1' implies one box lies inside another
+# 'i=0' and 'j=1' imples boxes intersect dont contain eachother
+# 'i=0' and 'j=0' implies boxes dont overlap nor contain eachother
             m = 0
             n = 0
             if i == 1:
                 # Boxes contain each other
-
                 for p in range(len(supp)):
+                #Checking if both objects are not Parent-Child Receptacle pair
                     if supp[p]['objectId'] == mod_name[s]:
-
+                        
                         if supp[p]['parentReceptacles']:
                             if mod_name[t] in supp[p]['parentReceptacles']:
                                 m=1
@@ -329,12 +371,14 @@ def front_back(supp, res1, box, mod_name, mod_dist):
                         if supp[p]['receptacleObjectIds']:
                             if mod_name[t] in supp[p]['receptacleObjectIds']:
                                 n = 1
-
+                        #If not Parent-Child Receptacle, check which object is closer for front-back relation
                         if m == 0 or n == 0:
                             if mod_dist[s] > mod_dist[t]:
-                                infront_behind.append([mod_name[s], 'is behind', mod_name[t]])
+                                infront_behind.append([mod_name[s], ' is behind of ', mod_name[t]])
+                                infront_behind.append([mod_name[t], ' is infront of ', mod_name[s]])
                             else:
-                                infront_behind.append([mod_name[s], 'is infront', mod_name[t]])
+                                infront_behind.append([mod_name[s], ' is infront of ', mod_name[t]])
+                                infront_behind.append([mod_name[t], ' is behind of ', mod_name[s]])
                 c1 += 1
 
             else:
@@ -348,6 +392,7 @@ def front_back(supp, res1, box, mod_name, mod_dist):
                     c3 += 1
 
                     for p in range(len(supp)):
+                    #Checking if both objects are not Parent-Child Receptacle pair
                         if supp[p]['objectId'] == mod_name[s]:
                             if supp[p]['parentReceptacles']:
                                 if mod_name[t] in supp[p]['parentReceptacles']:
@@ -356,41 +401,40 @@ def front_back(supp, res1, box, mod_name, mod_dist):
                             if supp[p]['receptacleObjectIds']:
                                 if mod_name[t] in supp[p]['receptacleObjectIds']:
                                     n = 1
-
+                            #If not Parent-Child Receptacle, check which object is closer for front-back relation
                             if m == 0 or n == 0:
                                 if mod_dist[s] > mod_dist[t]:
-                                    infront_behind.append([mod_name[s], 'is behind', mod_name[t]])
+                                    infront_behind.append([mod_name[s], ' is behind of ', mod_name[t]])
+                                    infront_behind.append([mod_name[t], ' is infront of ', mod_name[s]])
                                 else:
-                                    infront_behind.append([mod_name[s], 'is in-front of', mod_name[t]])
-
-    print('Number of containing bounding boxes: ', c1)
-    print('Number of bounding boxes that dont intersect or contain: ', c2)
-    print('Number of bounding boxes that intersect but dont contain: ', c3)
+                                    infront_behind.append([mod_name[s], ' is infront of ', mod_name[t]])
+                                    infront_behind.append([mod_name[t], ' is behind of ', mod_name[s]])
+                                    
    
     return infront_behind
 
 
-if __name__ == '__main__':
-    controller = Controller(scene='FloorPlan28')
-    controller.reset(scene='FloorPlan28')
+# if __name__ == '__main__':
+    # controller = Controller(scene='FloorPlan28')
+    # controller.reset(scene='FloorPlan28')
 
-    event = controller.step(action='MoveAhead', renderObjectImage=True)
+    # event = controller.step(action='MoveAhead', renderObjectImage=True)
 
-    metadata = event.metadata['objects']
+    # metadata = event.metadata['objects']
    
-    supp, put, res1, box, mod_name, mod_dist, objpos, near_box, near_obj = prepare_data(metadata, event)
+    # supp, put, res1, box, mod_name, mod_dist, objpos, near_box, near_obj = prepare_data(metadata, event)
 
-    print('On top and Below Relations')
-    tp = top_down(supp)
-    print(tp)
+    # print('On top and Below Relations')
+    # tp = top_down(supp)
+    # print(tp)
 
-    print('Near and Left/Right Relation')
-    nlr = near_lr(put, objpos, near_box, near_obj)
-    print(nlr)
+    # print('Near and Left/Right Relation')
+    # nlr = near_lr(put, objpos, near_box, near_obj)
+    # print(nlr)
 
-    print('Infront and Behind Relation')
-    fb = front_back(supp, res1, box, mod_name, mod_dist)
-    print(fb)
+    # print('Infront and Behind Relation')
+    # fb = front_back(supp, res1, box, mod_name, mod_dist)
+    # print(fb)
 
     # Displaying Bounding Boxes
     # import cv2
